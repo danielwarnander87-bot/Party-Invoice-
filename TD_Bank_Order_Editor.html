@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TD Bank Catering Order</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<style>
+  :root {
+    --surface-2: #ffffff;
+    --surface-1: #F1EFE8;
+    --surface-0: #F7F6F2;
+    --text-primary: #1a1a18;
+    --text-secondary: #5F5E5A;
+    --text-muted: #888780;
+    --text-danger: #A32D2D;
+    --border: #D3D1C7;
+    --radius: 8px;
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+  body { background: var(--surface-0); margin: 0; padding: 32px 16px; color: var(--text-primary); }
+  input, button {
+    font-family: inherit; border: 0.5px solid var(--border); border-radius: var(--radius);
+    background: var(--surface-2); color: var(--text-primary);
+  }
+  button { cursor: pointer; background: transparent; }
+  button:hover { background: var(--surface-1); }
+  input:focus, button:focus { outline: 2px solid #85B7EB; outline-offset: 1px; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .no-print { display: none !important; }
+    input { border: none !important; background: transparent !important; padding: 0 !important; }
+    #card { border: none !important; box-shadow: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="card" style="max-width:680px; margin:0 auto; background:var(--surface-2); border:0.5px solid var(--border); border-radius:12px; padding:20px;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+    <div>
+      <p style="font-size:15px; font-weight:600; margin:0;">TD Bank — catering order</p>
+      <p style="font-size:13px; color:var(--text-secondary); margin:2px 0 0;">Uno Pizzeria &amp; Grill, Newtown Square</p>
+    </div>
+    <div class="no-print" style="display:flex; gap:8px;">
+      <button id="print-btn" style="font-size:13px; padding:6px 10px;"><i class="ti ti-printer" style="font-size:14px; vertical-align:-2px; margin-right:4px;" aria-hidden="true"></i>Print</button>
+      <button id="add-row" style="font-size:13px; padding:6px 10px;"><i class="ti ti-plus" style="font-size:14px; vertical-align:-2px; margin-right:4px;" aria-hidden="true"></i>Add item</button>
+    </div>
+  </div>
+
+  <div style="border:0.5px solid var(--border); border-radius:12px; overflow:hidden; margin-top:12px;">
+    <div style="display:grid; grid-template-columns: 44px minmax(0,1fr) 90px 32px; background:var(--surface-1); font-size:12px; color:var(--text-secondary); padding:8px 10px;">
+      <div>Qty</div><div>Item / notes</div><div style="text-align:right;">Price</div><div></div>
+    </div>
+    <div id="rows"></div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; margin-top:14px; font-size:13px;">
+    <div style="display:flex; gap:24px;"><span style="color:var(--text-secondary);">Subtotal</span><span id="subtotal" style="min-width:70px; text-align:right;">$0.00</span></div>
+    <div style="display:flex; gap:24px; align-items:center;">
+      <span style="color:var(--text-secondary);">Tax %</span>
+      <input id="tax-rate" type="number" value="5.33" step="0.01" style="width:64px; height:28px; font-size:13px; padding:2px 6px;" />
+      <span id="tax-amt" style="min-width:70px; text-align:right;">$0.00</span>
+    </div>
+    <div style="display:flex; gap:24px; font-weight:600; font-size:15px; border-top:0.5px solid var(--border); padding-top:6px; margin-top:2px;"><span>Total</span><span id="total" style="min-width:70px; text-align:right;">$0.00</span></div>
+  </div>
+</div>
+
+<script>
+let rows = [
+  { qty:1, name:"Coffee", price:14.99, notes:[] },
+  { qty:1, name:"Iced Tea", price:5.00, notes:[] },
+  { qty:1, name:"Cheese & Tomato Deep Dish – 10\" Regular", price:20.99, notes:[] },
+  { qty:1, name:"Prima Pepperoni Deep Dish – 10\" Regular", price:24.69, notes:[] },
+  { qty:1, name:"Create Your Own Thin Crust (16\" X-Large) – no sauce, broccoli, roasted vegetables", price:23.99, notes:[] },
+  { qty:1, name:"House Salad Party Platter (Ranch)", price:25.99, notes:[{text:"Mix all ingredients together; serve with 3 choices of dressing on the side.", red:true}] },
+  { qty:1, name:"Mix & Match Sandwich Platter", price:62.99, notes:[
+      {text:"2 Caprese Sandwiches", red:false},
+      {text:"3 Honey Grilled Chicken Wraps", red:false},
+      {text:"3 Turkey Bacon & Avocado Sandwiches", red:false}
+  ]},
+];
+
+const rowsEl = document.getElementById('rows');
+
+function money(n){ return '$' + n.toFixed(2); }
+
+function render(){
+  rowsEl.innerHTML = '';
+  rows.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid; grid-template-columns: 44px minmax(0,1fr) 90px 32px; padding:8px 10px; border-top:0.5px solid var(--border); align-items:start; gap:6px;';
+
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number'; qtyInput.value = r.qty; qtyInput.min = 0;
+    qtyInput.style.cssText = 'width:36px; height:30px; font-size:13px; padding:2px;';
+    qtyInput.addEventListener('input', e => { r.qty = parseFloat(e.target.value)||0; recalc(); });
+
+    const nameCol = document.createElement('div');
+    const nameInput = document.createElement('input');
+    nameInput.value = r.name;
+    nameInput.style.cssText = 'width:100%; height:30px; font-size:13px; margin-bottom:4px; padding:2px 6px;';
+    nameInput.addEventListener('input', e => { r.name = e.target.value; });
+    nameCol.appendChild(nameInput);
+
+    r.notes.forEach((n, ni) => {
+      const noteRow = document.createElement('div');
+      noteRow.style.cssText = 'display:flex; gap:4px; margin:2px 0;';
+      const noteInput = document.createElement('input');
+      noteInput.value = n.text;
+      noteInput.style.cssText = 'flex:1; height:26px; font-size:12px; font-style:italic; padding:2px 6px; color:' + (n.red ? 'var(--text-danger)' : 'var(--text-secondary)') + ';';
+      noteInput.addEventListener('input', e => { n.text = e.target.value; });
+      const redToggle = document.createElement('button');
+      redToggle.innerHTML = '<i class="ti ti-flag-3" aria-hidden="true" style="font-size:13px;"></i>';
+      redToggle.setAttribute('aria-label', 'Toggle red note');
+      redToggle.style.cssText = 'width:26px; height:26px; padding:0; color:' + (n.red ? 'var(--text-danger)' : 'var(--text-muted)') + ';';
+      redToggle.addEventListener('click', () => { n.red = !n.red; render(); });
+      const delNote = document.createElement('button');
+      delNote.innerHTML = '<i class="ti ti-x" aria-hidden="true" style="font-size:12px;"></i>';
+      delNote.setAttribute('aria-label', 'Remove note');
+      delNote.style.cssText = 'width:26px; height:26px; padding:0;';
+      delNote.addEventListener('click', () => { r.notes.splice(ni,1); render(); });
+      noteRow.appendChild(noteInput); noteRow.appendChild(redToggle); noteRow.appendChild(delNote);
+      nameCol.appendChild(noteRow);
+    });
+
+    const addNoteBtn = document.createElement('button');
+    addNoteBtn.textContent = '+ note';
+    addNoteBtn.style.cssText = 'font-size:11px; height:24px; padding:0 8px; color:var(--text-secondary);';
+    addNoteBtn.addEventListener('click', () => { r.notes.push({text:'', red:false}); render(); });
+    nameCol.appendChild(addNoteBtn);
+
+    const priceInput = document.createElement('input');
+    priceInput.type = 'number'; priceInput.value = r.price; priceInput.step = '0.01';
+    priceInput.style.cssText = 'width:80px; height:30px; font-size:13px; text-align:right; padding:2px 6px;';
+    priceInput.addEventListener('input', e => { r.price = parseFloat(e.target.value)||0; recalc(); });
+
+    const delBtn = document.createElement('button');
+    delBtn.innerHTML = '<i class="ti ti-trash" aria-hidden="true" style="font-size:14px;"></i>';
+    delBtn.setAttribute('aria-label', 'Remove item');
+    delBtn.style.cssText = 'width:30px; height:30px; padding:0; color:var(--text-danger);';
+    delBtn.addEventListener('click', () => { rows.splice(i,1); render(); recalc(); });
+
+    row.appendChild(qtyInput); row.appendChild(nameCol); row.appendChild(priceInput); row.appendChild(delBtn);
+    rowsEl.appendChild(row);
+  });
+  recalc();
+}
+
+function recalc(){
+  const subtotal = rows.reduce((s,r) => s + r.qty * r.price, 0);
+  const taxRate = parseFloat(document.getElementById('tax-rate').value) || 0;
+  const tax = subtotal * (taxRate/100);
+  document.getElementById('subtotal').textContent = money(subtotal);
+  document.getElementById('tax-amt').textContent = money(tax);
+  document.getElementById('total').textContent = money(subtotal + tax);
+}
+
+document.getElementById('add-row').addEventListener('click', () => {
+  rows.push({ qty:1, name:'New item', price:0, notes:[] });
+  render();
+});
+document.getElementById('tax-rate').addEventListener('input', recalc);
+document.getElementById('print-btn').addEventListener('click', () => window.print());
+
+render();
+</script>
+</body>
+</html>
